@@ -1,54 +1,54 @@
 # SQUAD — De Klunzenstad
 
-Een coöperatieve 3D-klunzengame voor groep 8, in ontwikkeling, met een mobiele **offline oefenstand** en een voorbereide Firebase-multiplayermodus (zes teams van vijf).
+**Speelbaar:** https://sandromeertens.github.io/SQUAD/
 
-## Actuele status
+Een 3D-samenwerkingsgame voor groep 8 met een online oefenstand en een **nieuwe gratis Firebase Spark-multiplayermodus**, voorbereid voor zes teams van vijf.
 
-- **Firebase-webconfiguratie gekoppeld** aan project `squad-a63fa` via `web/.env.production` (openbare clientconfiguratie, geen geheimen).
-- Firebase-projectverwijzing staat in `.firebaserc`.
-- De gebruiker heeft in de Firebase Console anonieme aanmelding en Realtime Database ingeschakeld; de repository kan niet bevestigen of alle instellingen en beveiligingsregels daadwerkelijk juist actief zijn.
-- **Cloud Functions, databasespelregels en Firebase Hosting zijn nog niet gepubliceerd. Multiplayer is dus nog niet live.**
-- GitHub Pages-workflow is toegevoegd om de **offline 3D-oefenversie** online te kunnen testen. Dat is nog geen bewijs dat GitHub Pages actief is.
+## Wat werkt al?
 
-## Gratis eerste oefenversie publiceren via GitHub Pages
+- De 3D-oefenstand is gepubliceerd via GitHub Pages en op een telefoon geopend.
+- De multiplayercode gebruikt **Firebase Anonymous Authentication en Realtime Database rechtstreeks**, zonder betaalde Cloud Functions.
+- Elke leerling heeft een eigen spelersrecord, teams delen een eigen missie en de klas deelt een ronde/week (tot 40 weken). 30 plaatsen worden verdeeld over 6 teams.
+- Tests voor de spelregels draaien automatisch bij elke publicatie.
 
-1. Open de [GitHub Pages-instellingen](https://github.com/SandroMeertens/SQUAD/settings/pages).
-2. Kies bij **Build and deployment → Source**: **GitHub Actions**.
-3. Bekijk de [Actions](https://github.com/SandroMeertens/SQUAD/actions) en wacht tot de workflow **SQUAD 3D oefenstand publiceren** groen is.
-4. Controleer de gepubliceerde URL. Normaal gesproken is dat `https://sandromeertens.github.io/SQUAD/`, maar deze link werkt pas als GitHub Pages is geactiveerd én de workflow geslaagd is.
-5. Tik op **EERST ZELF OEFENEN · ZONDER ACCOUNT**. De klasmodus werkt pas als de Firebase-server is gepubliceerd.
+## Nog één verplichte handeling: Firebase-databaseregels publiceren
 
-## Firebase-multiplayer later publiceren
+**De multiplayer is nog NIET live getest of geactiveerd.** De nieuwe broncode is gepubliceerd, maar beveiligingsregels worden niet automatisch in jouw Firebase-project aangepast. Doe het volgende als projecteigenaar:
 
-De server moet de drie callable functies `createClassroom`, `joinClassroom` en `submitAction` in `europe-west1` uitvoeren. De client gebruikt anonieme Firebase Authentication en luistert naar de Realtime Database.
+1. Open [SQUAD Realtime Database](https://console.firebase.google.com/project/squad-a63fa/database) en kies **Rules** (Regels).
+2. Open de [nieuwe beveiligingsregels](https://raw.githubusercontent.com/SandroMeertens/SQUAD/main/database.rules.json) in een tweede tabblad.
+3. Kopieer de volledige JSON-inhoud en vervang de bestaande regels in de Firebase Console.
+4. Tik op **Publish** (Publiceren). De regels mogen NIET in testmodus blijven staan.
+5. Open de [game](https://sandromeertens.github.io/SQUAD/) in twee verschillende browsers of apparaten. Tik op **NIEUWE CODE** en **SPEEL MET JE KLAS** op apparaat 1, vul dezelfde klascode in op apparaat 2. Test of beide poppetjes bewegen en samen de bank kunnen slepen.
 
-- Controleer vóór publicatie of het Firebase-project voor Cloud Functions de **Blaze-billinginstelling** nodig heeft; je kunt daarbij kosten maken.
-- Publiceer `database.rules.json`, `functions/` en de gebouwde `web/dist/` op Firebase Hosting, bijvoorbeeld met de officiële Firebase CLI na authenticatie als projecteigenaar.
-- Gebruik voor GitHub Actions bij eventuele latere Firebase-deployments uitsluitend GitHub Secrets of een veilige Workload Identity-koppeling, nooit privéserviceaccountsleutels in Git.
-- Als GitHub Pages als webhost voor multiplayer gebruikt wordt, voeg dan `sandromeertens.github.io` toe onder **Firebase Authentication → Settings → Authorized domains** en test anoniem aanmelden.
-- Test met verschillende browsers en uiteindelijk 30 iPads. De backend doet momenteel database-transacties per actie en is nog niet op 30 gelijktijdige spelers of kosten getest.
-- Controleer leerlingprivacy, klasbeveiliging, ouderlijk/schooltoestemming en databeheer voordat je dit in een echte klas gebruikt.
+Op een telefoon kun je via Chrome **⋮ → Desktopsite** de regels beter bewerken.
 
-## Lokaal ontwikkelen en testen
+## Belangrijke beperkingen
+
+- **Nog niet getest met echte Firebase-regels, twee apparaten of 30 gelijktijdige iPads.**
+- Een anonieme browseridentiteit blijft aan een gereserveerde plek verbonden; bij verwijderen van browsergegevens kan een nieuwe plek nodig zijn. Er is nog geen docentdashboard, reset- of opschoonfunctie.
+- Er worden geen namen of e-mailadressen gevraagd. Er worden wel technische Firebase-gebruikers-ID's, spelersposities, aanwezigheid, team- en rondegegevens bewaard. Voor gebruik met kinderen zijn schoolprivacy/AVG-controle en bewaarbeleid nodig.
+- De klascode bepaalt wie kan toetreden. Beveiligingsregels beperken de toegang en beschermen de eigen spelersgegevens. Teamacties worden nog **op de iPads berekend**; dit is geen volledig server-gecontroleerd anti-cheatsysteem.
+- Spark heeft een beperkt aantal gelijktijdige verbindingen en maandelijkse database-downloads. Houd [Firebase Usage](https://console.firebase.google.com/project/squad-a63fa/usage) in de gaten; boven de gratis quota kan de dienst tijdelijk stoppen zonder extra factuur.
+- Het 3D-beeld is een functioneel WebGL2-prototype met eenvoudige modellen, nog geen afgeronde premium 3D-animatie.
+
+## Techniek
+
+- `web/firebase-client.js`: gratis Firebase Realtime Database-multiplayer
+- `web/spark-logic.js`: pure spelregels voor zes samenwerkende teams
+- `database.rules.json`: beveiligingsregels met kamers, teams, 30 plekken en eigen spelers
+- `web/world3d.js`: mobiele 3D-wereld
+- `.github/workflows/pages.yml`: automatische tests en bouw/publicatie
+- `functions/`: oud, ongebruikt prototype; **wordt niet meer gedeployed**
+- `firebase.json`: Firebase Hosting en Realtime Database (geen Functions)
+
+Lokaal ontwikkelen:
 
 ```sh
 cd web
 npm install
 npm run dev
 npm run build
-
-cd ../
-node --test tests/portable-logic.test.mjs
+cd ..
+node --test tests/*.test.mjs
 ```
-
-De oefenstand werkt zonder Firebase met lokaal opgeslagen voortgang. Firebase-webconfiguratie wordt voor productie automatisch geladen via Vite.
-
-## Architectuur
-
-- `web/`: echte WebGL2 3D-wereld, knoppen voor mobiel, offline oefenstand en Firebase-client
-- `functions/`: server-gecontroleerde klaslokalen en spelacties
-- `database.rules.json`: op klassenlidmaatschap gebaseerde alleen-lezen regels voor de spelstatus
-- `firebase.json`: Firebase Hosting, Functions en Database instellingen
-- `tests/`: spelregellogica en samenwerkingstests
-
-De karakters zijn voorlopig eenvoudige procedurele 3D-vormen, nog geen professioneel geanimeerde ragdolls. Er is nog geen leerkrachtdashboard of compleet privacy- en lifecyclebeheer.
