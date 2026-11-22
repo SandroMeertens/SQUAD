@@ -4,6 +4,15 @@
 
 Een 3D-samenwerkingsgame voor groep 8 met een online oefenstand en een **nieuwe gratis Firebase Spark-multiplayermodus**, voorbereid voor zes teams van vijf.
 
+## Nieuwe 3D-update — levende Klunzenstad
+
+- Vijf herkenbare klunzen per team, met verschillende hoofddeksels, grote voeten, bewegende armen en benen, knipperogen en gezichtsuitdrukkingen.
+- Ragdoll-**achtige** struikelbewegingen met vallen en overeind krabbelen na een botsing; dit is geen volwaardige fysica-engine.
+- De gezamenlijke klasstad groeit van **stadniveau 1 tot 10**. Na voortgang verschijnen extra zwevende gebouwen en later ballonnen; iedere vijfde missie is er een feestelijk moment.
+- De bovenbalk toont nu het blijvende stadniveau en het aantal afgeleverde vrachten in plaats van uitsluitend de stand van de huidige ronde.
+- De nieuwe beelden zijn nog niet met meerdere iPads en alle browsers getest. Er zijn geen wijzigingen aan de Firebase-databasestructuur of -regels nodig.
+- Automatische tests in `tests/cartoon-animation.test.mjs` controleren de animatieposes, het herstel en de stadsniveaus.
+
 ## Wat werkt al?
 
 - De 3D-oefenstand is gepubliceerd via GitHub Pages en op een telefoon geopend.
