@@ -1,4 +1,5 @@
-// SQUAD: lightweight native WebGL2 renderer; no external scripts or dependencies.
+// SQUAD: lightweight native WebGL2 renderer, real 3D triangles.
+import {missionFor} from './mission-director.js';
 // All geometry is real triangles viewed through a perspective camera.
 const VS = `#version 300 es
 precision highp float;
@@ -50,11 +51,56 @@ function staticWorld(){const m=mesh();
 function perspective(fov,aspect,near,far){const f=1/Math.tan(fov/2),nf=1/(near-far);return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0]);}
 function look(eye,target){const normal=v=>{const len=Math.hypot(...v)||1;return v.map(a=>a/len)};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);const back=normal(eye.map((v,i)=>v-target[i])),right=normal(cross(back,[0,1,0])),up=normal(cross(right,back));return new Float32Array([right[0],up[0],back[0],0,right[1],up[1],back[1],0,right[2],up[2],back[2],0,-dot(right,eye),-dot(up,eye),-dot(back,eye),1]);}
 function generateDynamic(state,id,t){const m=mesh(),me=state?.players?.[id]||{x:0,z:-5,team:0};const teams=state?.teams||[];const team=teams[me.team]||{couch:{x:0,z:1,wobble:0},cargo:'bank',fanOff:false,gate:false};
- // Giant props that wobble and bounce depending on real shared server state.
+ // Visual signature for the current mission twist, using no extra database fields.
+ const twist=missionFor(team.round||state?.season?.round||1,me.team,team.cargo).twist;
+ for(let i=0;i<4;i++){
+  const z=7+i*4.5;
+  if(twist==='wind'){
+   const sway=Math.sin(t*.003+i)*.35;
+   m.box(-7.5+sway,1.1,z,.22,1.8,.22,'#7bedf3');
+   m.cone(-7.5+sway,2.03,z,.85,1.1,'#a1f7fd',6);
+   m.box(7.5-sway,1.1,z,.22,1.8,.22,'#7bedf3');
+  } else if(twist==='sticky'){
+   m.sphere((i%2?2.2:-2.2),.29,z,2.8,.14,1.7,'#eb8ed7',11,5);
+   m.sphere((i%2?1.2:-1.2),.39,z+.7,1.3,.12,.85,'#ffd0ed',9,4);
+  } else if(twist==='bouncy'){
+   m.sphere(-6,.39,z,1.4,.27,1.5,'#e8c477',10,5);
+   m.sphere(6,.39,z,1.4,.27,1.5,'#e8c477',10,5);
+   m.box(0,.32,z,9,.05,.38,'#8efae8');
+  }
+ }
+ // Giant props that wobble and bounce depending on real shared state.
  const c=team.couch,px=c.x,pz=c.z,tilt=c.wobble||0,bounce=Math.sin(t*.003)*.07;
- if(team.cargo==='pudding'){m.sphere(px,2.05+bounce,pz,3.5,2.3,2.3,COLORS.jelly,11,8);m.sphere(px,2.6+bounce,pz,2.7,1.5,2.1,COLORS.jellyLight,10,7);for(const x of [-.95,.95])m.sphere(px+x,2.6,pz-2,0.42,.42,.19,COLORS.black,7,5);}
- else if(team.cargo==='wasmachine'){m.box(px,2.25+bounce,pz,4.5,4.5,3.3,COLORS.washer);m.box(px,4.1+bounce,pz-1.7,3.8,.6,.1,COLORS.glass);m.cylinder(px,2.2+bounce,pz-1.75,1.25,.22,COLORS.dark,12);m.sphere(px,2.2+bounce,pz-1.88,.96,.96,.15,COLORS.glass,12,9);}
- else {m.box(px,1.1+bounce,pz,5.8,1.4,2.7,COLORS.pink);m.box(px,2.05+bounce+tilt*.2,pz+.75,5.6,1.7,1.1,'#e1a2a0');m.box(px-2.8,1.9+bounce-tilt*.4,pz,1.2,2,3,COLORS.pink);m.box(px+2.8,1.9+bounce+tilt*.4,pz,1.2,2,3,COLORS.pink);for(let x of [-1.5,0,1.5])m.box(px+x,1.68+bounce,pz-.4,1.45,.42,1.7,'#efb09d');}
+ if(team.cargo==='pudding'){
+  const wob=Math.sin(t*.008)*Math.min(.45,.14+tilt*.15);
+  m.sphere(px+wob,2.05+bounce,pz,3.5+wob,2.25-wob*.4,2.3,COLORS.jelly,14,9);
+  m.sphere(px-wob*.6,2.7+bounce,pz,2.8,1.5+wob*.45,2.1,COLORS.jellyLight,13,8);
+  for(const x of [-.95,.95]){
+   m.sphere(px+x+wob,2.77+bounce,pz-2.03,.46,.51,.19,COLORS.white,9,6);
+   m.sphere(px+x+wob+.1,2.77+bounce,pz-2.23,.2,.28,.11,COLORS.black,8,5);
+  }
+  m.sphere(px+wob,1.69+bounce,pz-2.25,.42,.25,.11,COLORS.black,10,6);
+ }
+ else if(team.cargo==='wasmachine'){
+  const spin=Math.sin(t*.007)*.25;
+  m.box(px,2.25+bounce,pz,4.5,4.5,3.3,COLORS.washer);
+  m.box(px,4.1+bounce,pz-1.7,3.8,.6,.1,COLORS.glass);
+  m.cylinder(px,2.2+bounce,pz-1.75,1.25,.22,COLORS.dark,12);
+  m.sphere(px,2.2+bounce,pz-1.88,.97,.97,.15,'#70b0d0',14,9);
+  for(let i=0;i<3;i++){
+    const a=t*.005+i*2*Math.PI/3;
+    m.sphere(px+Math.cos(a)*.57,2.2+bounce+Math.sin(a)*.57,pz-2.01,.31,.31,.08,i===1?'#fbb7c7':'#d8ffff',8,5);
+  }
+  m.sphere(px-1.54,4.1+bounce,pz-1.77,.16,.16,.12,spin>0?'#72ffd0':'#ffb76a',8,4);
+ }
+ else {
+  m.box(px,1.1+bounce,pz,5.8,1.4,2.7,COLORS.pink);
+  m.box(px,2.05+bounce+tilt*.2,pz+.75,5.6,1.7,1.1,'#e1a2a0');
+  m.box(px-2.8,1.9+bounce-tilt*.4,pz,1.2,2,3,COLORS.pink);
+  m.box(px+2.8,1.9+bounce+tilt*.4,pz,1.2,2,3,COLORS.pink);
+  for(let x of [-1.5,0,1.5])m.box(px+x,1.68+bounce,pz-.4,1.45,.42,1.7,'#efb09d');
+  for(const x of [-2.15,2.15])m.box(px+x,.4,pz+.6,.42,.7,.52,'#5d4763');
+ }
  // Giant noisy fan, amber switch and the bridge gate.
  m.box(-5.4,1.25,12,1.2,2.5,1.2,COLORS.steel);m.cylinder(-5.4,3.05,12,.78,.6,team.fanOff?'#78cbb1':COLORS.gold,9);
  if(!team.fanOff){for(let i=0;i<4;i++){const a=i*Math.PI/2+t*.009,x=-5.4+Math.cos(a)*1.3,z=12+Math.sin(a)*1.3;m.box(x,3.2,z,1.1,.14,.9,COLORS.glass)}}
@@ -67,16 +113,41 @@ function generateDynamic(state,id,t){const m=mesh(),me=state?.players?.[id]||{x:
  function avatar(p,index,isMe){const x=p.x,z=p.z,phase=t*.006+index,walk=p.stumble?0.6:0.18,shift=Math.sin(phase)*walk;const color=palette[index%5];
   // Clumsy big feet, tiny torso, cartoon overlarge head, moving arms, backpack.
   m.box(x-.58, .32+Math.max(0,shift), z-.15, .88,.62,1.05,COLORS.black);m.box(x+.58,.32+Math.max(0,-shift),z-.15,.88,.62,1.05,COLORS.black);
+  // Oversized cartoon toes are deliberately larger than the legs.
+  m.sphere(x-.58,.31+Math.max(0,shift),z-.56,.57,.34,.66,COLORS.black,9,5);
+  m.sphere(x+.58,.31+Math.max(0,-shift),z-.56,.57,.34,.66,COLORS.black,9,5);
   m.box(x-.48,1.12,z,.48,1.3,.58,color);m.box(x+.48,1.12,z,.48,1.3,.58,color);
   m.sphere(x,2.5,z,1.17,1.27,.88,color,9,7);m.sphere(x,4.15,z-.05,1.18,1.1,1.1,COLORS.skin,11,8);
   m.sphere(x,4.71,z-.14,1.2,.57,1.1,COLORS.black,10,6);
+  // Friendly facial animation: eyes, pupils, a goofy nose and changing mouth.
+  const blink=Math.sin(t*.0014+index*2.6)>.989?.07:.29;
+  for(const side of [-1,1]){
+    const ex=x+side*.43;
+    m.sphere(ex,4.24,z-1.025,.27,blink,.17,COLORS.white,9,5);
+    m.sphere(ex+side*.035,4.24,z-1.185,.11,Math.max(.05,blink*.59),.08,COLORS.black,7,4);
+    m.sphere(x+side*.87,3.94,z-.8,.26,.2,.15,'#eab59a',8,5);
+  }
+  m.sphere(x,4.04,z-1.14,.19,.17,.17,'#ca917b',9,6);
+  if(p.stumble) m.sphere(x,3.69,z-1.13,.3,.36,.09,COLORS.black,10,6);
+  else if(p.grip) m.sphere(x,3.73,z-1.13,.34,.18,.09,'#713948',10,6);
+  else m.sphere(x,3.72,z-1.13,.38,.10,.09,'#713948',10,6);
+  m.cone(x-.55,5.13,z-.08,.43,.5,COLORS.black,8);
   for(const side of [-1,1]){m.box(x+side*1.42,2.23+shift*side,z,.5,1.35,.55,color);m.sphere(x+side*1.42,1.45+shift*side,z,.33,.32,.33,COLORS.skin,8,5)}
   m.box(x,2.55,z-1,1.2,1.5,.57,COLORS.black);m.box(x,2.6,z-1.31,.72,.65,.15,isMe?'#85fff0':'#87c7e9');
   if(p.grip)m.box(x,5.4,z,.7,.3,.7,COLORS.gold);
   if(p.stumble)m.sphere(x,5.65,z,.18,.18,.18,'#fff6c0',7,4);
  }
  players.forEach(([pId,p],i)=>avatar(p,i,pId===id));
- if(state?.roster?.length===1){avatar({x:me.x+2.1,z:me.z-.3,grip:me.grip,stumble:0},3,false)}
+ if(state?.practice){avatar({x:me.x+2.1,z:me.z-.3,grip:me.grip,stumble:0},3,false)}
+ if(team.finished){
+  const confetti=['#ffdc89','#96f9e1','#f3a5cf','#b5baff','#fff5ca'];
+  for(let i=0;i<28;i++){
+   const angle=i*2.399,dist=3+(i%5)*1.2;
+   const y=2.0+((t*.0018+i*.33)%6.5);
+   const x=c.x+Math.cos(angle+t*.0005)*dist,z=c.z+Math.sin(angle+t*.0005)*dist;
+   m.box(x,y,z,.22,.3,.13,confetti[i%confetti.length]);
+  }
+ }
  return m.data();}
 export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true,antialias:true,depth:true,powerPreference:'high-performance'});if(!gl)return null;
  function shader(type,src){const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
