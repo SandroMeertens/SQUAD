@@ -1,0 +1,16 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "classrooms": {
+      "$code": {
+        ".read": false,
+        ".write": false,
+        "gameState": {
+          ".read": "auth != null && root.child('classrooms').child($code).child('members').child(auth.uid).val() === true",
+          ".write": false
+        }
+      }
+    }
+  }
+}
