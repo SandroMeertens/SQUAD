@@ -4,7 +4,7 @@ export function joystickVector(x,y,radius=48,deadZone=.12){
   const distance=Math.hypot(x,y),amount=Math.min(1,distance/radius);
   if(amount<=deadZone)return {dx:0,dz:0};
   const strength=(amount-deadZone)/(1-deadZone);
-  return {dx:x/distance*strength,dz:-y/distance*strength};
+  return {dx:x===0?0:x/distance*strength,dz:y===0?0:-y/distance*strength};
 }
 export function createJoystick(track){
   if(!track)return {read:()=>({dx:0,dz:0}),reset:()=>{}};
