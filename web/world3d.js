@@ -2,6 +2,7 @@
 import {missionFor} from './mission-director.js';
 import {cartoonPose,cityProgress} from './cartoon-animation.js';
 import {partyWorldTriangles} from './party-world.js';
+import {createViewSmoother} from './visual-smoothing.js';
 // All geometry is real triangles viewed through a perspective camera.
 const VS = `#version 300 es
 precision highp float;
@@ -377,7 +378,7 @@ function generateDynamic(state,id,t,crashElapsedMs=Infinity){const m=mesh(),me=s
   }
  }
  return m.data();}
-export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true,antialias:true,depth:true,powerPreference:'high-performance'});if(!gl)return null;
+export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true,antialias:false,depth:true,powerPreference:'high-performance'});if(!gl)return null;
  function shader(type,src){const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
  const positions=[['aPosition',0],['aNormal',3],['aColor',6]];const attrib=positions.map(([name])=>gl.getAttribLocation(prog,name));const projection=gl.getUniformLocation(prog,'uProjection'),view=gl.getUniformLocation(prog,'uView'),cameraWorld=gl.getUniformLocation(prog,'uCameraWorld');
@@ -385,7 +386,8 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
  const staticBuffer=gl.createBuffer(),backdropBuffer=gl.createBuffer(),partyBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer();
  const staticData=staticWorld(),backdropData=staticWorld(true);
  const flags={original:false,backdrop:false,party:false};
- let partyData=null,visualMode='laden',camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8,slowFrames=0;
+ const smoother=createViewSmoother();
+ let partyData=null,visualMode='laden',camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8,slowFrames=0,quality=1;
  function existing(buffer){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
  function fixed(buffer,data,key){if(!flags[key]){bind(buffer,data,gl.STATIC_DRAW);flags[key]=true;}else existing(buffer);gl.drawArrays(gl.TRIANGLES,0,data.length/9);}
  // Fetch once per device; no Firebase reads or updates for the graphics.
@@ -396,19 +398,23 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
   .then(buffer=>{const converted=partyWorldTriangles(buffer);partyData=converted.data;visualMode='party';console.info('SQUAD Zweefstad geladen',converted.triangles,'driehoeken');})
   .catch(err=>{visualMode='classic';console.warn('SQUAD Zweefstad niet geladen; veilig terug naar klassiek',err.message);});
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);
- return {mode(){return visualMode},draw(state,id,time){const dpr=Math.min(devicePixelRatio||1,1.5),w=canvas.clientWidth||400,h=canvas.clientHeight||800;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+ return {mode(){return visualMode},draw(state,id,time){const dpr=Math.min(devicePixelRatio||1,1.15)*quality,w=canvas.clientWidth||400,h=canvas.clientHeight||800;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   let own=state?.players?.[id]||{x:0,z:-5};
   const frameGap=last?time-last:16;
   // An older iPad that stays below ~14 fps can recover automatically.
   // One slow frame, a briefly hidden tab or a loading spike must not trigger it.
   if(partyData){
-    if(frameGap>72&&frameGap<300)slowFrames++;
-    else slowFrames=Math.max(0,slowFrames-2);
-    if(slowFrames>=75){partyData=null;visualMode='classic';console.warn('SQUAD: lichte 3D-weergave gekozen om haperingen te voorkomen');}
+    if(frameGap>52&&frameGap<300)slowFrames++;
+    else slowFrames=Math.max(0,slowFrames-1);
+    if(slowFrames>=16&&quality===1){quality=.76;slowFrames=0;visualMode='party-lite';console.info('SQUAD: kleinere 3D-beeldresolutie op iPad');}
+    else if(slowFrames>=34&&quality<1){partyData=null;visualMode='classic';slowFrames=0;console.warn('SQUAD: klassieke lichte 3D-weergave gekozen');}
   }
-  const dt=Math.min(.075,frameGap/1000||.016);last=time;let follow=1-Math.exp(-dt*3.6);camX+=((own.x||0)-camX)*follow;camZ+=((own.z||-5)-camZ)*follow;
-  const current=state?.teams?.[own.team]||{};
-  const eventKey=`${state?.season?.round||1}:${own.team||0}:${current.eventSeq||0}`;
+  const dt=Math.min(.075,frameGap/1000||.016);last=time;
+  const renderState=smoother.smooth(state,id,frameGap);
+  own=renderState?.players?.[id]||own;
+  let follow=1-Math.exp(-dt*3.6);camX+=((own.x||0)-camX)*follow;camZ+=((own.z||-5)-camZ)*follow;
+  const current=renderState?.teams?.[own.team]||{};
+  const eventKey=`${renderState?.season?.round||1}:${own.team||0}:${current.eventSeq||0}`;
   if(eventKey!==lastEventKey){
     if(lastEventKey!==null&&/KLABAM|O NEE|BOEM/.test(current.event||''))impactAt=time;
     lastEventKey=eventKey;
@@ -422,6 +428,6 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
    fixed(backdropBuffer,backdropData,'backdrop');
    fixed(partyBuffer,partyData,'party');
   }else fixed(staticBuffer,staticData,'original');
-  const dynamic=generateDynamic(state,id,time,sinceImpact);bind(dynamicBuffer,dynamic,gl.DYNAMIC_DRAW);gl.drawArrays(gl.TRIANGLES,0,dynamic.length/9);
+  const dynamic=generateDynamic(renderState,id,time,sinceImpact);bind(dynamicBuffer,dynamic,gl.DYNAMIC_DRAW);gl.drawArrays(gl.TRIANGLES,0,dynamic.length/9);
  }};
 }
