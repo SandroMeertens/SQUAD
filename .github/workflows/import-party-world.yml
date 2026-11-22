@@ -1,0 +1,43 @@
+name: Importeer partywereld uit SQUAD 3D Jutsu
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-party-world.yml'
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download en controleer SQUAD Zweefstad
+        env:
+          WORLD_DOWNLOAD_URL: 'https://695d5a9fc666e505559765690b5db7dd.r2.cloudflarestorage.com/3d-scene-builder/projects/16467948-0967-4ccf-b43d-5581b16083e4/revisions/00000003-squad-party-visuals-20261122-01/preview.glb?X-Amz-Expires=900&X-Amz-Date=20261122T184551Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=f4fb15da414147020cebc9c7007b912d%2F20261122%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=3304c645e0e9f5b0f082b61da370025bbf0021496fcb6e2bc1bb3bedeaca3b9d'
+        run: |
+          set -euo pipefail
+          mkdir -p web/public/models
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 "$WORLD_DOWNLOAD_URL" -o web/public/models/squad-party-world.glb
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct,json
+          p=Path('web/public/models/squad-party-world.glb')
+          blob=p.read_bytes()
+          assert blob[:4]==b'glTF' and struct.unpack_from('<I',blob,8)[0]==len(blob), 'Invalid GLB'
+          assert len(blob)<12*1024*1024, 'Scene too big for mobile prototype'
+          n,chunk=struct.unpack_from('<II',blob,12)
+          assert chunk==0x4e4f534a
+          scene=json.loads(blob[20:20+n])
+          print('GLB bytes',len(blob),'meshes',len(scene.get('meshes',[])),'nodes',len(scene.get('nodes',[])))
+          print('extensions',scene.get('extensionsRequired',[]),'materials',len(scene.get('materials',[])))
+          assert not scene.get('extensionsRequired'), 'GLB needs unsupported extensions'
+          PY
+      - name: Commit speelwereld 3D-model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/models/squad-party-world.glb
+          if ! git diff --cached --quiet; then
+            git commit -m "Voeg complete SQUAD Zweefstad toe als exporteerbaar 3D GLB"
+            git push origin HEAD:main
+          fi
