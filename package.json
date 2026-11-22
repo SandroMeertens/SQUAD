@@ -1,0 +1,9 @@
+{
+  "name": "squad-spark-rules-tests",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "firebase-tools": "^14.14.0",
+    "@firebase/rules-unit-testing": "^5.0.0"
+  }
+}
