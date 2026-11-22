@@ -5,12 +5,12 @@ import {cartoonPose,cityProgress} from './cartoon-animation.js';
 const VS = `#version 300 es
 precision highp float;
 in vec3 aPosition; in vec3 aNormal; in vec3 aColor;
-uniform mat4 uProjection; uniform mat4 uView;
+uniform mat4 uProjection; uniform mat4 uView;uniform vec3 uCameraWorld;
 out vec3 vNormal; out vec3 vColor; out float vDepth;out vec3 vEye;out float vHeight;
 void main(){
  vec4 camera=uView*vec4(aPosition,1.0);
  gl_Position=uProjection*camera;
- vDepth=-camera.z;vEye=-camera.xyz;
+ vDepth=-camera.z;vEye=uCameraWorld-aPosition;
  vColor=aColor;vNormal=aNormal;vHeight=aPosition.y;
 }`;
 const FS = `#version 300 es
@@ -362,7 +362,7 @@ function generateDynamic(state,id,t,crashElapsedMs=Infinity){const m=mesh(),me=s
 export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true,antialias:true,depth:true,powerPreference:'high-performance'});if(!gl)return null;
  function shader(type,src){const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
- const positions=[['aPosition',0],['aNormal',3],['aColor',6]];const attrib=positions.map(([name])=>gl.getAttribLocation(prog,name));const projection=gl.getUniformLocation(prog,'uProjection'),view=gl.getUniformLocation(prog,'uView');
+ const positions=[['aPosition',0],['aNormal',3],['aColor',6]];const attrib=positions.map(([name])=>gl.getAttribLocation(prog,name));const projection=gl.getUniformLocation(prog,'uProjection'),view=gl.getUniformLocation(prog,'uView'),cameraWorld=gl.getUniformLocation(prog,'uCameraWorld');
  function bind(buffer,data,usage){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,data,usage);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
  const staticBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer(),staticData=staticWorld();let camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8,staticUploaded=false;
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);
@@ -376,7 +376,9 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
   }
   const sinceImpact=time-impactAt,shake=sinceImpact<550?(1-sinceImpact/550):0;
   const aspect=w/h;gl.uniformMatrix4fv(projection,false,perspective((aspect<.7?66:54)*Math.PI/180,aspect,.1,420));
-  gl.uniformMatrix4fv(view,false,look([camX+shake*Math.sin(time*.09)*.32,9.4+shake*Math.cos(time*.076)*.13,camZ-17],[camX,1.8,camZ+19]));
+  const eye=[camX+shake*Math.sin(time*.09)*.32,9.4+shake*Math.cos(time*.076)*.13,camZ-17];
+  gl.uniform3f(cameraWorld,...eye);
+  gl.uniformMatrix4fv(view,false,look(eye,[camX,1.8,camZ+19]));
   if(!staticUploaded){bind(staticBuffer,staticData,gl.STATIC_DRAW);staticUploaded=true;}
   else {gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
   gl.drawArrays(gl.TRIANGLES,0,staticData.length/9);
