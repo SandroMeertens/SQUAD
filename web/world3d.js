@@ -140,8 +140,17 @@ function staticWorld(){const m=mesh();
    const a=i*2*Math.PI/9;
    m.sphere(Math.sin(a)*7.2,12.95+Math.cos(a)*.7,35.25,.32,.32,.33,'#fff3c2',8,5);
  }
+ // Soft layered 3D candy clouds, framed in the distant sunset sky.
+ const clouds=[
+   [-39,40,85],[-23,51,120],[34,47,101],[49,35,137],[-54,46,155]
+ ];
+ for(const [x,y,z] of clouds){
+   m.sphere(x,y,z,9,2.8,5.4,'#f3c8d8',10,6);
+   m.sphere(x+5,y+1,z-.5,7,3.8,5.5,'#f9d6d0',10,6);
+   m.sphere(x-5,y+.5,z+1,6,2.5,5.2,'#cab9d9',9,5);
+ }
  // Scenic sun, rendered in-world against the CSS gradient.
- m.sphere(-45,70,165,16,16,4,'#ffdbad',18,12);
+ m.sphere(-45,70,165,16,16,4,'#ffe2b5',18,12);
  return m.data();}
 function perspective(fov,aspect,near,far){const f=1/Math.tan(fov/2),nf=1/(near-far);return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0]);}
 function look(eye,target){const normal=v=>{const len=Math.hypot(...v)||1;return v.map(a=>a/len)};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);const back=normal(eye.map((v,i)=>v-target[i])),right=normal(cross(back,[0,1,0])),up=normal(cross(right,back));return new Float32Array([right[0],up[0],back[0],0,right[1],up[1],back[1],0,right[2],up[2],back[2],0,-dot(right,eye),-dot(up,eye),-dot(back,eye),1]);}
@@ -255,7 +264,11 @@ function generateDynamic(state,id,t,crashElapsedMs=Infinity){const m=mesh(),me=s
  if(!team.gate)m.box(0,3,22,19,1,1.3,'#eb987f');
  m.box(6,1,19,.95,2,.9,team.gate?'#6af9d8':COLORS.gold);
  // Render teammates only, so the six teams are together in one class world without visual overload.
- let players=Object.entries(state?.players||{}).filter(([otherId,p])=>p.team===me.team).sort((a,b)=>b[1].z-a[1].z);
+ // Stable player order is essential: clothes and faces must not swap when players pass.
+ const roster=state?.roster||[];
+ const rank=uid=>{const i=roster.indexOf(uid);return i<0?999:i;};
+ let players=Object.entries(state?.players||{}).filter(([otherId,p])=>p.team===me.team)
+   .sort((a,b)=>rank(a[0])-rank(b[0]));
  if(!players.length)players=[[id,me]];
  const palette=['#f9ca66','#7fd1eb','#e09ada','#94d8a0','#fa95a6'];
  function avatar(p,index,isMe){
