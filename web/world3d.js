@@ -206,8 +206,18 @@ function generateDynamic(state,id,t,crashElapsedMs=Infinity){const m=mesh(),me=s
    m.box(0,.32,z,9,.05,.38,'#8efae8');
   }
  }
+ // Floating motes, like a playful animated fairy-tale village.
+ for(let i=0;i<13;i++){
+   const phase=t*.0007+i*1.78;
+   const x=me.x+Math.sin(i*11.37+phase)*(3.5+i%4*1.4);
+   const z=me.z+7+Math.cos(i*4.11+phase)*8;
+   const y=3.7+(i%5)*.86+Math.sin(phase*2.3)*.36;
+   const tint=i%3===0?'#ffdfaa':i%3===1?'#a8f0f5':'#f3b9db';
+   m.sphere(x,y,z,.09,.11,.09,tint,6,4);
+ }
  // Giant props that wobble and bounce depending on real shared state.
  const c=team.couch,px=c.x,pz=c.z,tilt=c.wobble||0,bounce=Math.sin(t*.003)*.07;
+ m.sphere(px,.216,pz,3.9,.035,2.6,'#4a5b76',11,5);
  if(team.cargo==='pudding'){
   const wob=Math.sin(t*.008)*Math.min(.45,.14+tilt*.15);
   m.sphere(px+wob,2.05+bounce,pz,3.5+wob,2.25-wob*.4,2.3,COLORS.jelly,14,9);
@@ -354,7 +364,7 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
  const positions=[['aPosition',0],['aNormal',3],['aColor',6]];const attrib=positions.map(([name])=>gl.getAttribLocation(prog,name));const projection=gl.getUniformLocation(prog,'uProjection'),view=gl.getUniformLocation(prog,'uView');
  function bind(buffer,data,usage){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,data,usage);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
- const staticBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer(),staticData=staticWorld();let camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8;
+ const staticBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer(),staticData=staticWorld();let camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8,staticUploaded=false;
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);
  return {draw(state,id,time){const dpr=Math.min(devicePixelRatio||1,1.5),w=canvas.clientWidth||400,h=canvas.clientHeight||800;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   let own=state?.players?.[id]||{x:0,z:-5};const dt=Math.min(.075,(time-last)/1000||.016);last=time;let follow=1-Math.exp(-dt*3.6);camX+=((own.x||0)-camX)*follow;camZ+=((own.z||-5)-camZ)*follow;
@@ -367,7 +377,9 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
   const sinceImpact=time-impactAt,shake=sinceImpact<550?(1-sinceImpact/550):0;
   const aspect=w/h;gl.uniformMatrix4fv(projection,false,perspective((aspect<.7?66:54)*Math.PI/180,aspect,.1,420));
   gl.uniformMatrix4fv(view,false,look([camX+shake*Math.sin(time*.09)*.32,9.4+shake*Math.cos(time*.076)*.13,camZ-17],[camX,1.8,camZ+19]));
-  bind(staticBuffer,staticData,gl.STATIC_DRAW);gl.drawArrays(gl.TRIANGLES,0,staticData.length/9);
+  if(!staticUploaded){bind(staticBuffer,staticData,gl.STATIC_DRAW);staticUploaded=true;}
+  else {gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
+  gl.drawArrays(gl.TRIANGLES,0,staticData.length/9);
   const dynamic=generateDynamic(state,id,time,sinceImpact);bind(dynamicBuffer,dynamic,gl.DYNAMIC_DRAW);gl.drawArrays(gl.TRIANGLES,0,dynamic.length/9);
  }};
 }
