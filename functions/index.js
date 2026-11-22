@@ -10,7 +10,8 @@ import { getDatabase } from 'firebase-admin/database';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import * as game from './logic.js';
 
-initializeApp();
+// Explicit target: the classroom Realtime Database is in europe-west1.
+initializeApp({databaseURL:'https://squad-a63fa-default-rtdb.europe-west1.firebasedatabase.app'});
 const database = getDatabase();
 const region = 'europe-west1';
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
