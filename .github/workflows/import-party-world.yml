@@ -30,7 +30,7 @@ jobs:
           scene=json.loads(blob[20:20+n])
           print('GLB bytes',len(blob),'meshes',len(scene.get('meshes',[])),'nodes',len(scene.get('nodes',[])))
           print('extensions',scene.get('extensionsRequired',[]),'materials',len(scene.get('materials',[])))
-          assert not scene.get('extensionsRequired'), 'GLB needs unsupported extensions'
+          assert set(scene.get('extensionsRequired',[]))<= {'KHR_lights_punctual'}, 'GLB needs unsupported geometry extensions'
           PY
       - name: Commit speelwereld 3D-model
         run: |
