@@ -1,6 +1,7 @@
 // SQUAD: lightweight native WebGL2 renderer, real 3D triangles.
 import {missionFor} from './mission-director.js';
 import {cartoonPose,cityProgress} from './cartoon-animation.js';
+import {partyWorldTriangles} from './party-world.js';
 // All geometry is real triangles viewed through a perspective camera.
 const VS = `#version 300 es
 precision highp float;
@@ -62,7 +63,8 @@ function mesh(){const values=[];
   }
  }
  return {box,sphere,cone,cylinder,segment,data:()=>new Float32Array(values),size:()=>values.length/9};}
-function staticWorld(){const m=mesh();
+function staticWorld(partyBackdrop=false){const m=mesh();
+ if(!partyBackdrop){
  // Bridge, suspended in the sky, with depth and solid structural rails.
  m.box(0,-.72,12,22,1.4,110,COLORS.roadSide);m.box(0,.08,12,21.7,.19,110,COLORS.road);
  // Wide friendly stepping stones and glowing trim guide little players forward.
@@ -90,6 +92,7 @@ function staticWorld(){const m=mesh();
    m.cone(-3.7,-9,z,5.9,-10,COLORS.stone);
    m.cone(5,-9,z,4.4,-8,'#38415f');
    m.sphere(-3.7,-10,z,2.3,1.5,2.2,'#766e91',8,5);
+ }
  }
  // Floating architectural islands, waterfalls, towers, gardens.
  for(let i=0;i<20;i++){const side=i%2?1:-1,x=side*(22+(i%4)*9),z=11+i*9+(i%3)*8,y=-1+(i%4)*3;
@@ -126,6 +129,7 @@ function staticWorld(){const m=mesh();
  m.cylinder(0,.1,87,11,4,'#35516b',14);m.cylinder(0,4,87,5,47,'#263b63',14);
  m.cylinder(0,7,87,3.5,42,'#63d8f4',12);m.cylinder(0,50,87,8,1.2,COLORS.gold,14);
  for(let k=0;k<5;k++){const z=87,x=Math.cos(k*Math.PI*2/5)*9,y=8;m.box(x,y+19,z+Math.sin(k*Math.PI*2/5)*9,1.8,38,1.8,COLORS.steel)}
+ if(!partyBackdrop){
  // Trees and lanterns near the route.
  for(let z=-32;z<65;z+=8){for(const side of [-1,1]){const x=side*(13.5+(Math.floor(z)%3)*2);m.cylinder(x,0,z,.48,4.8,COLORS.trunk,8);m.sphere(x,6,z,3.7,3.6,3.2,z%2?'#438271':'#6da98c',9,6);m.sphere(x-1.1,7.8,z,2.4,2.3,2.2,'#76aa84',9,6);}}
  // Massive arched finish-line and background scenery.
@@ -139,6 +143,7 @@ function staticWorld(){const m=mesh();
  for(let i=0;i<9;i++){
    const a=i*2*Math.PI/9;
    m.sphere(Math.sin(a)*7.2,12.95+Math.cos(a)*.7,35.25,.32,.32,.33,'#fff3c2',8,5);
+ }
  }
  // Soft layered 3D candy clouds, framed in the distant sunset sky.
  const clouds=[
@@ -377,9 +382,20 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
  const positions=[['aPosition',0],['aNormal',3],['aColor',6]];const attrib=positions.map(([name])=>gl.getAttribLocation(prog,name));const projection=gl.getUniformLocation(prog,'uProjection'),view=gl.getUniformLocation(prog,'uView'),cameraWorld=gl.getUniformLocation(prog,'uCameraWorld');
  function bind(buffer,data,usage){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,data,usage);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
- const staticBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer(),staticData=staticWorld();let camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8,staticUploaded=false;
+ const staticBuffer=gl.createBuffer(),backdropBuffer=gl.createBuffer(),partyBuffer=gl.createBuffer(),dynamicBuffer=gl.createBuffer();
+ const staticData=staticWorld(),backdropData=staticWorld(true);
+ const flags={original:false,backdrop:false,party:false};
+ let partyData=null,visualMode='laden',camX=0,camZ=-5,last=0,lastEventKey=null,impactAt=-1e8;
+ function existing(buffer){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
+ function fixed(buffer,data,key){if(!flags[key]){bind(buffer,data,gl.STATIC_DRAW);flags[key]=true;}else existing(buffer);gl.drawArrays(gl.TRIANGLES,0,data.length/9);}
+ // Fetch once per device; no Firebase reads or updates for the graphics.
+ // A failed/old iPad keeps the already working classical world.
+ fetch(import.meta.env.BASE_URL+'models/squad-party-world.glb')
+  .then(response=>{if(!response.ok)throw Error('HTTP '+response.status);return response.arrayBuffer();})
+  .then(buffer=>{const converted=partyWorldTriangles(buffer);partyData=converted.data;visualMode='party';console.info('SQUAD Zweefstad geladen',converted.triangles,'driehoeken');})
+  .catch(err=>{visualMode='classic';console.warn('SQUAD Zweefstad niet geladen; veilig terug naar klassiek',err.message);});
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);
- return {draw(state,id,time){const dpr=Math.min(devicePixelRatio||1,1.5),w=canvas.clientWidth||400,h=canvas.clientHeight||800;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+ return {mode(){return visualMode},draw(state,id,time){const dpr=Math.min(devicePixelRatio||1,1.5),w=canvas.clientWidth||400,h=canvas.clientHeight||800;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   let own=state?.players?.[id]||{x:0,z:-5};const dt=Math.min(.075,(time-last)/1000||.016);last=time;let follow=1-Math.exp(-dt*3.6);camX+=((own.x||0)-camX)*follow;camZ+=((own.z||-5)-camZ)*follow;
   const current=state?.teams?.[own.team]||{};
   const eventKey=`${state?.season?.round||1}:${own.team||0}:${current.eventSeq||0}`;
@@ -392,9 +408,10 @@ export function create3D(canvas){const gl=canvas.getContext('webgl2',{alpha:true
   const eye=[camX+shake*Math.sin(time*.09)*.32,9.4+shake*Math.cos(time*.076)*.13,camZ-17];
   gl.uniform3f(cameraWorld,...eye);
   gl.uniformMatrix4fv(view,false,look(eye,[camX,1.8,camZ+19]));
-  if(!staticUploaded){bind(staticBuffer,staticData,gl.STATIC_DRAW);staticUploaded=true;}
-  else {gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);positions.forEach(([,offset],i)=>{gl.enableVertexAttribArray(attrib[i]);gl.vertexAttribPointer(attrib[i],3,gl.FLOAT,false,36,offset*4)});}
-  gl.drawArrays(gl.TRIANGLES,0,staticData.length/9);
+  if(partyData){
+   fixed(backdropBuffer,backdropData,'backdrop');
+   fixed(partyBuffer,partyData,'party');
+  }else fixed(staticBuffer,staticData,'original');
   const dynamic=generateDynamic(state,id,time,sinceImpact);bind(dynamicBuffer,dynamic,gl.DYNAMIC_DRAW);gl.drawArrays(gl.TRIANGLES,0,dynamic.length/9);
  }};
 }
