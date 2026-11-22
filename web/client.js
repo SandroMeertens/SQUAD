@@ -66,7 +66,7 @@ function draw(now){if(lastPaint&&now-lastPaint<31){requestAnimationFrame(draw);r
  if(mode!==lastGraphicsMode){
   lastGraphicsMode=mode;
   const indicator=$('#graphicsmode');
-  if(indicator)indicator.textContent=mode==='party'?'🎡 NIEUWE 3D ZWEEFSTAD':mode==='classic'?'☁️ LICHTE 3D ZWEEFSTAD':'3D-WERELD LADEN…';
+  if(indicator)indicator.textContent=mode==='party'?'🎡 NIEUWE 3D ZWEEFSTAD':mode==='party-lite'?'🎮 SOEPELE 3D-MODUS':mode==='classic'?'☁️ LICHTE 3D ZWEEFSTAD':'3D-WERELD LADEN…';
  }
  try{renderer3d.draw(view,ID,now)}catch(error){
   console.warn('SQUAD: 3D-weergave valt terug op 2D',error);
