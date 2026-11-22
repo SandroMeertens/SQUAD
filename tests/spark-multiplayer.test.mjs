@@ -66,3 +66,36 @@ test('Only teams with reserved seats are required to finish the mission',()=>{
   assert.equal(view.practice,false);
   assert.equal(view.canAdvance,true);
 });
+
+import {missionFor,missionHazard} from '../web/mission-director.js';
+
+test('The 200 school-year missions contain changing, deterministic cargo stories and hazards',()=>{
+  const variants=['normal','wind','sticky','bouncy'];
+  for(let round=1;round<=200;round++){
+    const a=missionFor(round,0,round%2?'bank':'pudding');
+    assert.equal(a.round,round);
+    assert.equal(a.week,Math.min(40,Math.ceil(round/5)));
+    assert.equal(a.twist,variants[(round-1)%4]);
+    assert.ok(a.title.length>5 && a.twistHint.length>10);
+    assert.deepEqual(missionFor(round,0,'bank'),missionFor(round,0,'bank'));
+  }
+  assert.equal(missionFor(1,0,'pudding').title,'PUDDING-PANIEK');
+  assert.equal(missionFor(1,0,'wasmachine').title,'WASMACHINE-WAANZIN');
+  assert.equal(missionHazard(3,0,11).stickySpeed,.64);
+  assert.equal(missionHazard(3,0,1).stickySpeed,1);
+});
+test('Wind, sticky glue and bouncing bridge change the actual cooperative movement',()=>{
+  const p1={...initialPlayer(0),x:0,z:10,grip:true,dir:[0,1]};
+  const p2={...initialPlayer(1),x:1,z:10,grip:true,dir:[0,1]};
+  const players={a:p1,b:p2}, presence={a:true,b:true};
+  const base={...initialTeam(0,1),fanOff:true,couch:{x:0,z:10,wobble:0}};
+  const normal=teamAction(base,{type:'move',dx:0,dz:1},p1,players,presence,'a');
+  const wind=teamAction({...base,round:2},{type:'move',dx:0,dz:1},p1,players,presence,'a');
+  const sticky=teamAction({...base,round:3},{type:'move',dx:0,dz:1},p1,players,presence,'a');
+  assert.ok(wind.couch.wobble>normal.couch.wobble);
+  assert.ok(sticky.couch.z<normal.couch.z);
+  const bouncy=teamAction({...base,round:4},{type:'move',dx:1,dz:0},p1,players,presence,'a');
+  const turning=teamAction(base,{type:'move',dx:1,dz:0},p1,players,presence,'a');
+  assert.ok(bouncy.couch.wobble>turning.couch.wobble);
+  assert.equal(base.couch.z,10);
+});
