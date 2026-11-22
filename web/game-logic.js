@@ -1,3 +1,4 @@
+import {missionHazard} from './mission-director.js';
 export const meta = { game: 'SQUAD — De Klunzenstad', minPlayers: 1, maxPlayers: 30 };
 const MAX_PLAYERS = 30;
 const TEAM_SIZE = 5;
@@ -14,7 +15,7 @@ function initialPlayer(index) {
     z: -5 - (index % 2), grip: false, rescues: 0, stumble: 0, dir: [0, 0], lastMove: -100 };
 }
 function initialTeam(id, round = 1) {
-  return { id, cargo: CARGO[(id + round - 1) % CARGO.length], couch: { x: 0, z: 1, wobble: 0 }, gate: false, fanOff: false,
+  return { id, round, cargo: CARGO[(id + round - 1) % CARGO.length], couch: { x: 0, z: 1, wobble: 0 }, gate: false, fanOff: false,
     crashes: 0, finished: false, stabilization: 0, event: '', eventSeq: 0 };
 }
 export function setup(players) {
@@ -118,9 +119,10 @@ export function applyAction(state, id, action) {
         const teamwork = relevant.length >= 2 || practiceHelper ? 1 : .58;
         const stabilization = team.stabilization > 0 ? .55 : 1;
         const cargoSpeed = team.cargo === 'pudding' ? .62 : team.cargo === 'wasmachine' ? .43 : .5;
-        const nextZ = clamp(couch.z + dz * cargoSpeed * teamwork, 1, team.gate ? 35 : 17.7);
+        const hazard = missionHazard(team.round || state.season?.round || 1, team.id, couch.z);
+        const nextZ = clamp(couch.z + dz * cargoSpeed * teamwork * hazard.stickySpeed, 1, team.gate ? 35 : 17.7);
         const nextX = clamp(couch.x + dx * .26 * teamwork, -5, 5);
-        couch.wobble += Math.abs(dx) * (team.cargo === 'pudding' ? .12 : .05) * stabilization;
+        couch.wobble += Math.abs(dx) * ((team.cargo === 'pudding' ? .12 : .05) + hazard.bounceWobble) * stabilization;
         if (nextZ === couch.z && dz > 0 && !team.gate) couch.wobble += .06;
         couch.z = nextZ;
         couch.x = nextX;
@@ -128,6 +130,7 @@ export function applyAction(state, id, action) {
         team.stabilization = Math.max(0, team.stabilization - .06);
       }
       if (!team.fanOff && couch.z >= 10 && couch.z < 17.5) couch.wobble += team.cargo === 'pudding' ? .29 : .23;
+      couch.wobble += missionHazard(team.round || state.season?.round || 1, team.id, couch.z).windWobble;
     }
     if (couch.wobble >= 1.65) {
       couch.z = Math.max(1, couch.z - 2.3);
