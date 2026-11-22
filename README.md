@@ -13,6 +13,16 @@ Een 3D-samenwerkingsgame voor groep 8 met een online oefenstand en een **nieuwe 
 - De nieuwe beelden zijn nog niet met meerdere iPads en alle browsers getest. Er zijn geen wijzigingen aan de Firebase-databasestructuur of -regels nodig.
 - Automatische tests in `tests/cartoon-animation.test.mjs` controleren de animatieposes, het herstel en de stadsniveaus.
 
+## Nieuwe speelbare 3D-Zweefstad (Higgsfield → SQUAD)
+
+- De complete **3D Jutsu-partywereld** is als GLB-model ingevoerd in `web/public/models/squad-party-world.glb`. Dit is een écht 3D-bestand, geen plaatje.
+- `web/party-world.js` vertaalt de glTF-geometrie en materiaalkleuren rechtstreeks naar de bestaande WebGL2-renderer. Er is geen extra JS-3D-engine of Firebase-verkeer voor nodig.
+- De afgeronde brug en finish zijn uitgelijnd met het bestaande speelparcours. De nieuwe 3D-wereld is een **visuele laag**; botsingen, teams, ventilator, poort en opdrachten blijven door de bestaande spelregels bepaald.
+- De statische Blender-versies van de klunzen, bank en ventilator worden uit het decor gefilterd zodat er geen dubbele poppetjes, vracht of obstakels verschijnen.
+- Als het model niet laadt, blijft de klassieke 3D-wereld speelbaar. Bij aanhoudende lage framerate schakelt de game automatisch terug; via `?graphics=classic` kun je die lichte versie handmatig kiezen. Als WebGL2 faalt, is de bestaande 2D-weergave beschikbaar.
+- `tests/party-world.test.mjs` controleert de **echte geïmporteerde GLB**, veiligheid, oriëntatie en geometriebudget bij elke publicatie.
+- **Belangrijk:** de nieuwe 3D-weergave is nog niet op alle iPads of met 30 gelijktijdige apparaten getest. De render-import garandeert geen 30-iPad-prestatie.
+
 ## Wat werkt al?
 
 - De 3D-oefenstand is gepubliceerd via GitHub Pages en op een telefoon geopend.
@@ -20,26 +30,21 @@ Een 3D-samenwerkingsgame voor groep 8 met een online oefenstand en een **nieuwe 
 - Elke leerling heeft een eigen spelersrecord, teams delen een eigen missie en de klas deelt een ronde/week (tot 40 weken). 30 plaatsen worden verdeeld over 6 teams.
 - Tests voor de spelregels draaien automatisch bij elke publicatie.
 
-## Nog één verplichte handeling: Firebase-databaseregels publiceren
+## Firebase-status
 
-**De multiplayer is nog NIET live getest of geactiveerd.** De nieuwe broncode is gepubliceerd, maar beveiligingsregels worden niet automatisch in jouw Firebase-project aangepast. Doe het volgende als projecteigenaar:
-
-1. Open [SQUAD Realtime Database](https://console.firebase.google.com/project/squad-a63fa/database) en kies **Rules** (Regels).
-2. Open de [nieuwe beveiligingsregels](https://raw.githubusercontent.com/SandroMeertens/SQUAD/main/database.rules.json) in een tweede tabblad.
-3. Kopieer de volledige JSON-inhoud en vervang de bestaande regels in de Firebase Console.
-4. Tik op **Publish** (Publiceren). De regels mogen NIET in testmodus blijven staan.
-5. Open de [game](https://sandromeertens.github.io/SQUAD/) in twee verschillende browsers of apparaten. Tik op **NIEUWE CODE** en **SPEEL MET JE KLAS** op apparaat 1, vul dezelfde klascode in op apparaat 2. Test of beide poppetjes bewegen en samen de bank kunnen slepen.
-
-Op een telefoon kun je via Chrome **⋮ → Desktopsite** de regels beter bewerken.
+- **Realtime Database-regels gepubliceerd:** door de projecteigenaar bevestigd.
+- **Twee spelers:** werkende online verbinding en samenwerking op twee apparaten bevestigd.
+- **30 gelijktijdige iPads:** nog niet gemeten en daarom nog geen prestatiegarantie.
+- Voor later beheer: [Firebase-console](https://console.firebase.google.com/project/squad-a63fa/database).
 
 ## Belangrijke beperkingen
 
-- **Nog niet getest met echte Firebase-regels, twee apparaten of 30 gelijktijdige iPads.**
+- **Twee spelers zijn getest, maar nog niet 30 gelijktijdige iPads met de nieuwe 3D-wereld.**
 - Een anonieme browseridentiteit blijft aan een gereserveerde plek verbonden; bij verwijderen van browsergegevens kan een nieuwe plek nodig zijn. Er is nog geen docentdashboard, reset- of opschoonfunctie.
 - Er worden geen namen of e-mailadressen gevraagd. Er worden wel technische Firebase-gebruikers-ID's, spelersposities, aanwezigheid, team- en rondegegevens bewaard. Voor gebruik met kinderen zijn schoolprivacy/AVG-controle en bewaarbeleid nodig.
 - De klascode bepaalt wie kan toetreden. Beveiligingsregels beperken de toegang en beschermen de eigen spelersgegevens. Teamacties worden nog **op de iPads berekend**; dit is geen volledig server-gecontroleerd anti-cheatsysteem.
 - Spark heeft een beperkt aantal gelijktijdige verbindingen en maandelijkse database-downloads. Houd [Firebase Usage](https://console.firebase.google.com/project/squad-a63fa/usage) in de gaten; boven de gratis quota kan de dienst tijdelijk stoppen zonder extra factuur.
-- Het 3D-beeld is een functioneel WebGL2-prototype met eenvoudige modellen, nog geen afgeronde premium 3D-animatie.
+- Het 3D-beeld blijft een functioneel WebGL2-prototype: de nieuwe GLB-wereld is ingeladen als decor en maakt nog geen nieuwe botsingsfysica of volledige premium 3D-animatie mogelijk.
 
 ## Techniek
 
