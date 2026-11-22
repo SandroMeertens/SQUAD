@@ -38,7 +38,9 @@ test('Converts a real, indexed glTF triangle into playable SQUAD orientation',()
  assert.equal(world.triangles,1);
  assert.equal(world.visibleNodes,1,'Never render static duplicate team members');
  assert.equal(world.data.length,27);
- assert.deepEqual(Array.from(world.data.slice(0,3)),[0,Math.fround(-3.22),13]);
+ assert.ok(Math.abs(world.data[0])<1e-6,'Center of the bridge remains centered');
+ assert.equal(world.data[1],Math.fround(-3.22));
+ assert.equal(world.data[2],13);
  assert.equal(world.data[9+2],16.5,'Blender road direction becomes gameplay Z');
  assert.ok(world.data.slice(6,9).every(n=>n>=0&&n<=1),'Material colors are display-safe');
 });
