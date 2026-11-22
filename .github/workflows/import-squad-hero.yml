@@ -1,0 +1,47 @@
+name: Importeer gegenereerde SQUAD-kluns (GLB)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-squad-hero.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download onze eerste 3D-kluns
+        env:
+          MODEL_URL: "https://d8j0ntlcm91z4.cloudfront.net/user_3MQMrb09We7kHaU9jGuG7F0SkwQ/hf_20261122_153255_25499c8a-5805-4664-a6f3-419a4deb9a3d.glb"
+        run: |
+          mkdir -p web/public/models
+          curl --fail --location --silent --show-error --retry 3 --connect-timeout 15 --max-time 150 "$MODEL_URL" -o web/public/models/squad-hero.glb
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p=Path('web/public/models/squad-hero.glb')
+          blob=p.read_bytes()
+          assert blob[:4]==b'glTF', 'Not a valid GLB file'
+          assert struct.unpack_from('<I',blob,8)[0]==len(blob), 'GLB truncated'
+          assert len(blob)<25_000_000, 'Model larger than 25 MB, needs optimization'
+          print(f'3D-model gecontroleerd: {len(blob)/1048576:.2f} MiB')
+          PY
+      - name: Commit het echte 3D-model als spelasset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/models/squad-hero.glb
+          if ! git diff --cached --quiet; then
+            git commit -m "Voeg Higgsfield SQUAD-kluns als echt 3D GLB-model toe"
+            git push origin HEAD:main
+          fi
+      - name: Start publicatie inclusief de nieuwe preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --ref main
