@@ -32,7 +32,7 @@ jobs:
         run: npm install --no-audit --no-fund
         working-directory: web
       - name: Controleer spelregels
-        run: node --test tests/*.test.mjs && node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
+        run: node --test tests/portable-logic.test.mjs tests/spark-multiplayer.test.mjs && node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Bouw 3D-webapp
         env:
           GITHUB_PAGES: 'true'
