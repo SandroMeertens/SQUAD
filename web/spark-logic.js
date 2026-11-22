@@ -2,6 +2,7 @@
  * Pure game rules, shared by the browser and automated tests. No Cloud Functions.
  * This is a classroom prototype: client-authoritative teamwork, not anti-cheat.
  */
+import {missionHazard} from './mission-director.js';
 export const MAX_SEATS = 30;
 export const TEAM_COUNT = 6;
 export const TEAM_SIZE = 5;
@@ -80,12 +81,14 @@ export function teamAction(current, action, player, players, presence, uid) {
       if(disagreement)couch.wobble+=team.cargo==='pudding'?.48:.3;
       else{
         const speed=team.cargo==='pudding'?.62:team.cargo==='wasmachine'?.43:.5;
-        couch.z=clamp(couch.z+dz*speed,1,team.gate?35:17.7);
+        const hazard=missionHazard(team.round||1,team.id,couch.z);
+        couch.z=clamp(couch.z+dz*speed*hazard.stickySpeed,1,team.gate?35:17.7);
         couch.x=clamp(couch.x+dx*.24,-5,5);
-        couch.wobble=Math.max(0,couch.wobble+Math.abs(dx)*.07*(team.stabilization>0?.55:1)-.018*carriers);
+        couch.wobble=Math.max(0,couch.wobble+Math.abs(dx)*(.07+hazard.bounceWobble)*(team.stabilization>0?.55:1)-.018*carriers);
         team.stabilization=Math.max(0,team.stabilization-.06);
       }
       if(!team.fanOff&&couch.z>=10&&couch.z<17.5)couch.wobble+=.21;
+      couch.wobble+=missionHazard(team.round||1,team.id,couch.z).windWobble;
       if(couch.wobble>=1.65){
         couch.z=Math.max(1,couch.z-2.3);couch.wobble=.25;team.crashes++;
         announce(team,['KLABAM! De bank maakt een salto!','O NEE! Alles schuift!','BOEM! De boel valt om!'][team.crashes%3]);
